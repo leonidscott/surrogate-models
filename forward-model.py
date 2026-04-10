@@ -69,8 +69,11 @@ def inspect_behavior(N: int = 1000, M: int = 100):
 
     # 3. Compute mean @ each N
     mean = np.mean(U, axis=0)
-    ci_low = np.quantile(U, 0.025, axis=0)
-    ci_high= np.quantile(U, 0.975, axis=0)
+    #ci_low = np.quantile(U, 0.025, axis=0)
+    #ci_high= np.quantile(U, 0.975, axis=0)
+    std = np.std(U, axis=0)
+    ci_low = mean-(2*std)
+    ci_high= mean+(2*std)
     x, _ = stochastic_diffusion_model(xis[0], N)
 
     # 4. Plot
