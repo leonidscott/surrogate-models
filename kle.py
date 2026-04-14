@@ -12,7 +12,6 @@ class KLE(TypedDict):
     lam_trunc: np.ndarray # Vector: Ntrunc tall
     V_trunc:   np.ndarray # Matrix: Ntrunc x Ntrunc
     gps:       Sequence[GaussianProcessRegressor] # Vector: Ntrunc tall
-    Rsd:       int        # Stochastic Dimension
 def Rout(kle: KLE) -> int:
     return kle['Fbar'].shape
 def Ntrunc(kle: KLE) -> int:
@@ -102,8 +101,7 @@ def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
     KLE = {'Fbar'      : mean_field,
            'lam_trunc' : lam,
            'V_trunc'   : V,
-           'gps'       : gps,
-           'Rsd'       : Q_train.shape[1]}
+           'gps'       : gps}
     return KLE
 
 
