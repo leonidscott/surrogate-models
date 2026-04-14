@@ -82,13 +82,18 @@ def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
         raise Exception("Training set inputs and outputs need the same number of samples")
     (Nsamples, _) = F_train.shape
 
+    print(f"Nsamples: {Nsamples}, Rsd: {Q_train.shape[1]}, Rout: {F_train.shape[1]}")
+
     # 1. Calculate Coefficients Exactly
     mean_field = np.mean(F_train, axis=0)                # Vector: Rout tall
     f_fluct = F_train- mean_field                        # Matrix: Nsamples x Rout
-    cov_fluct = (1/Nsamples) * (f_fluct.T @ f_fluct)     # Matrix: Rout x Rout
+    print(f"f_fluct.shape {f_fluct.shape}")
+    cov_fluct = (1.0/(float(Nsamples) - 1.0)) * (f_fluct.T @ f_fluct)     # Matrix: Rout x Rout
+    print(f"cov.shape {cov_fluct.shape}")
     eigenvalues, eigenvectors = np.linalg.eig(cov_fluct) # λ_full <- Vector: Rout tall
                                                          # V_full <- Matrix: Rout x Rout
-    # Ntrunc: Number of Egienmoodes after truncation
+    print(f"eigenvalues: {eigenvalues}")
+    # Ntrunc: Number of Egienmoodes after truncation <= Rout
     # ↓ {lam: <- Vector: Ntrunc tall,   V: <- Matrix: Ntrunc x Ntrunc}
     eigen_pairs = truncate_eigenmodes(eigenvalues, eigenvectors)
     V = np.array(list(map(lambda pair: pair["v_i"], eigen_pairs))).T
