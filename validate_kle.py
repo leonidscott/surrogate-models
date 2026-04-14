@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Dict, Sequence
 from functional import seq, pseq
-from kle import train_kle
 import numpy as np
+import matplotlib.pyplot as plt
 
 # For file reading and writing
 import csv
@@ -18,13 +18,24 @@ def set_cwd():
 set_cwd()
 DIR = Path(__file__).resolve().parent
 
-from kle import train_kle
+from kle import train_kle, predict_kle
+import kle
 import forward_model
 
 def perform_kle(Nsamples: int, filename:str = f"{DIR}/out/training_data.csv"):
-    Q_train, F_train = get_u(Nsamples, filename)
-    print(f"Q_train: {np.array(Q_train).shape}, F_train: {np.array(F_train).shape}")
-    trained_kle = train_kle(np.array(Q_train), np.array(F_train))
+    print(f"Performing KLE on {Nsamples}")
+    print("--> Retrieving data")
+    x_vals, Q_set, F_set= seq(get_u(Nsamples*2, filename))
+    Q_train = Q_set[:Nsamples]
+    F_train = F_set[:Nsamples]
+    Q_val = Q_set[Nsamples:]
+    F_val = F_set[Nsamples:]
+    print("--> Training KLE")
+    trained_kle = train_kle(Q_train, F_train)
+    print("--> Predicting outsample")
+    F_tild = predict_kle(trained_kle, Q_val)
+
+    return x_vals, F_val, F_tild
 
 def get_u(Nsamples: int, filename:str = f"{DIR}/out/training_data.csv"):
     def get_x_vals(filename: str) -> Sequence[float]:
@@ -56,15 +67,53 @@ def get_u(Nsamples: int, filename:str = f"{DIR}/out/training_data.csv"):
     if Nsamples > len(u_vals):
         raise Exception(f"Requested more samples, {Nsamples}, than exists in the file {len(u_vals)}")
 
-    return q_vals[:Nsamples], u_vals[:Nsamples]
+    return x_vals, np.array(q_vals[:Nsamples]), np.array(u_vals[:Nsamples])
 
+def calc_errors(x_vals, F_true, F_approx):
+    print("--> Computing RMSE metrics")
+    rmses = (seq(zip(F_true.T, F_approx.T))
+             .map(lambda Fx: kle.RMSE(Fx[0],Fx[1]))
+             .to_list())
+    nrmses = (seq(zip(F_true.T, F_approx.T))
+              .map(lambda Fx: kle.NRMSE(Fx[0],Fx[1]))
+              .to_list())
+    rmse_plots(x_vals, rmses, nrmses)
+
+def rmse_plots(x_vals, rmses, nrmses):
+    plt.figure(figsize=(8,5))
+    plt.plot(x_vals, rmses, label='RMSE')
+    plt.plot(x_vals, nrmses, label='NRMSE')
+    plt.xlabel("x")
+    plt.legend()
+
+def show_f(x_vals, F):
+    N = F.shape[0]
+    mean = np.mean(F, axis=0)
+    std = np.std(F, axis=0)
+    ci_low = mean-(2*std)
+    ci_high= mean+(2*std)
+
+    plt.figure(figsize=(8,5))
+    ## mean
+    plt.plot(x_vals, mean, color="black", linewidth=2, label="Mean")
+    ## 95% CI
+    plt.fill_between(x_vals, ci_low, ci_high, color="gray", alpha=0.3, label="95% CI")
+
+    ## Meta data
+    plt.xlabel("x")
+    plt.ylabel("u(x)")
+    plt.xlim(0, 1)
+    plt.ylim(0, 1.8)
+    plt.xticks(np.linspace(0, 1, 6))        # 0, 0.2, ..., 1
+    plt.yticks(np.linspace(0, 1.8, 7))      # nice spacing
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.6)
+    plt.ylim(0,2.0)
+    plt.title(f"{N} Realizations (Stable Stochastic Diffusion)")
+    plt.legend()
 
 if __name__ == "__main__":
-    forward_model.generate_training_samples(Nsamples=10, filename=f"{DIR}/out/training_data-N100.csv")
-    #s1 = get_u(Nsamples=1)
-    perform_kle(10, filename=f"{DIR}/out/training_data-N100.csv")
-    #1. Create training data -> Write to a file
-    #2. Train KLE for all of U on a value of xi (Rout = 1000, Rsd=5)
-    #   Create a function that takes in a number of samples, reads that many from the file, then calculates:
-    #   -> See how many modes are retained
-    #   -> Show in sample error
+    x_vals, F_val, F_tild = perform_kle(1000)
+    calc_errors(x_vals, F_val, F_tild)
+    show_f(x_vals, F_tild)
+    plt.show()
+

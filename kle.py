@@ -21,12 +21,12 @@ class EigenDict(TypedDict):
     λ_i: Sequence[float]
     v_i: Sequence[Sequence[float]]
 def truncate_eigenmodes(eigenvalues: Sequence[float],
-                        eigenvectors:Sequence[Sequence[float]]) -> EigenDict:
+                        eigenvectors:np.ndarray) -> EigenDict:
     Rout = len(eigenvalues)
     # Couple eigenvalues and eigenvectors
     eigen_pairs = [
         {"λ_i": lam, "v_i": v}
-        for lam, v in zip(eigenvalues, eigenvectors)
+        for lam, v in zip(eigenvalues, eigenvectors.T)
     ]
 
     # Sort in decending order of eigenvalue
@@ -67,7 +67,8 @@ def gp_regression(train_in: np.ndarray, train_out: np.ndarray):
 
 def fit_C(Q_train: np.ndarray, C_train: np.ndarray) -> Sequence[GaussianProcessRegressor]:
     modes = C_train.T # Get columns
-    return list(map((lambda ck: gp_regression(Q_train, ck)), modes))
+    return pseq(modes).map(lambda ck: gp_regression(Q_train, ck)).to_list()
+    #return list(map((lambda ck: gp_regression(Q_train, ck)), modes))
 
 def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
     # Q_train: Uncertain Parameters of Training Set (Independent Var)- Nsamples x Rsd
@@ -82,17 +83,16 @@ def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
         raise Exception("Training set inputs and outputs need the same number of samples")
     (Nsamples, _) = F_train.shape
 
+    print("Training KLE")
     print(f"Nsamples: {Nsamples}, Rsd: {Q_train.shape[1]}, Rout: {F_train.shape[1]}")
 
     # 1. Calculate Coefficients Exactly
+    print("Calculating Coefficients")
     mean_field = np.mean(F_train, axis=0)                # Vector: Rout tall
     f_fluct = F_train- mean_field                        # Matrix: Nsamples x Rout
-    print(f"f_fluct.shape {f_fluct.shape}")
     cov_fluct = (1.0/(float(Nsamples) - 1.0)) * (f_fluct.T @ f_fluct)     # Matrix: Rout x Rout
-    print(f"cov.shape {cov_fluct.shape}")
-    eigenvalues, eigenvectors = np.linalg.eig(cov_fluct) # λ_full <- Vector: Rout tall
+    eigenvalues, eigenvectors = np.linalg.eigh(cov_fluct) # λ_full <- Vector: Rout tall
                                                          # V_full <- Matrix: Rout x Rout
-    print(f"eigenvalues: {eigenvalues}")
     # Ntrunc: Number of Egienmoodes after truncation <= Rout
     # ↓ {lam: <- Vector: Ntrunc tall,   V: <- Matrix: Ntrunc x Ntrunc}
     eigen_pairs = truncate_eigenmodes(eigenvalues, eigenvectors)
@@ -101,6 +101,7 @@ def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
     C_train = f_fluct @ V / np.sqrt(lam)          # C_train: <- Matrix: Nsamples x Ntrunc
 
     # 2. Train GP On Coefficients
+    print("Training GPs on Coefficients")
     gps = fit_C(Q_train, C_train)       # gps: <- Vector: Ntrunc tall
 
     KLE = {'Fbar'      : mean_field,
@@ -113,11 +114,14 @@ def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
 def predict_kle(kle: KLE, Q_novel: np.ndarray) -> np.ndarray:
     # kle: Dictionary containing KLE attributes (See def of KLE)
     # Q_novel: Novel uncertain parameters to estimate f(Q_novel) for - Nnew x Rsd
+    print("Predicting KLE")
+    print("--> Estimating Coefficients")
     C_mu = (seq(kle['gps'])
                      .map(lambda gp : gp.predict(Q_novel, return_std=False))
                      .to_list())
     C_hat = np.column_stack(C_mu)  # Matrix: Nnovel, Ntrunc
 
+    print("--> Assembling Solution")
     F_tild = kle['Fbar']+ (C_hat* np.sqrt(kle['lam_trunc'])) @ kle['V_trunc'].T
     return F_tild
 
