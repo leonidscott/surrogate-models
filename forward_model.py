@@ -15,12 +15,11 @@ import matplotlib.pyplot as plt
 
 
 DIR = Path(__file__).resolve().parent
-def generate_training_samples(Nsamples, filename=f"{DIR}/out/training_data.csv"):
+def generate_training_samples(Nsamples, N=1000, filename=f"{DIR}/out/training_data.csv"):
     print(f"brrr generating {Nsamples} training samples to file:")
 
     # Constants
     RSD = 5     # <- Stochastic Dimension
-    N = 100    # <- Number of points to evaluate the forward model at
     FILE_OFFSET=4 # CSV body starts at line 5, index 4
 
     file_exists = Path(filename).exists()
