@@ -4,3 +4,7 @@
 # Python
 .DS_Store
 __pycache__/
+
+# Run time artifacts
+latex-build/
+out/
