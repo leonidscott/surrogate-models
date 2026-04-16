@@ -1,0 +1,155 @@
+% =========================
+% Course Notes Template
+% main.tex
+% =========================
+\documentclass[11pt]{article}
+
+% ----- Page layout -----
+\usepackage[margin=0.9in]{geometry}
+\usepackage{setspace}
+\setstretch{1.08}
+\setcounter{secnumdepth}{0}
+
+% ----- Fonts (good default) -----
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+% ----- Math -----
+\usepackage{amsmath, amssymb, amsthm, mathtools}
+\usepackage{bm} % bold math symbols
+\usepackage{nicematrix}
+
+% ----- Figures / tables -----
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{booktabs}
+
+% Put images in a folder named "figures/"
+\graphicspath{{imgs/}}
+
+% ----- Colors, links, and references -----
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\usepackage[nameinlink, capitalize]{cleveref}
+
+% ----- Lists -----
+\usepackage{enumitem}
+\setlist[itemize]{topsep=4pt, itemsep=2pt}
+\setlist[enumerate]{topsep=4pt, itemsep=2pt}
+
+% ----- Code blocks (optional) -----
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+  xleftmargin=2em,
+  framexleftmargin=1.5em
+}
+
+% ----- Pseudo Code -----
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algnewcommand{\Input}{\State \textbf{Input:}}
+\algnewcommand{\Output}{\State \textbf{Output:}}
+
+% ----- Theorem-like environments -----
+\usepackage{cancel}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{example}{Example}[section]
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+% ----- Handy macros (edit as you like) -----
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\dd}{\,\mathrm{d}}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\grad}{\nabla}
+\newcommand{\divg}{\nabla\cdot}
+\newcommand{\curl}{\nabla\times}
+
+% ----- Title info -----
+\title{\textbf{Uncertainty Quantification - Homework 2}}
+\author{Leonid Scott}
+
+\begin{document}
+
+\maketitle
+
+% =========================
+\section{Problem Setting}
+This submission models the following 1D diffusion equation with both Polynomial Chaos Expansions (PCE) and Karhunen-Loève Expansions + Gaussian Processes (KLE-GP):
+
+\begin{equation}
+-\frac{d}{dx}\left( \nu(x,\xi) \frac{du}{dx} \right) = s(x) \\
+,x \in [0,1]. B.C.s: u(0) = u(1) = 0
+\end{equation}
+
+\noindent Where $s(x) = \sin(\pi x)$, and $v(x,xi) = v_0 (1 + \alpha \tanh(\sum_{i=1}^5 \xi_i \sin(i \pi x)))$.
+
+\noindent $v_0 = 0.1$, and $\alpha = 0.5$. $\vec{\xi} \in \mathbb{R}^5$, $\xi_i \text{ are } i.i.d$, and$\xi_i \sim N(0,1)$.
+
+
+\section{Numerical Scheme of Model}
+Equation (1) is modelled using a 2nd order finite difference scheme across a uniformly spaced mesh from $x=0$, and $x=1$. The mesh is discrtized into $N$ points, each spaced $\Delta x$ apart. Therefore, the discrtized equation for the left hand side of (1) at mesh point $i$ is:
+$$
+\left. \frac{du}{dx} \right|_i \simeq \frac{u_{i+1/2} - u_{i-1/2}}{\Delta x}
+$$
+$$
+u_{i+1/2} \simeq \nu_{i+1/2} \frac{u_{i+1} - u_i}{\Delta x}, \quad
+u_{i-1/2} \simeq \nu_{i-1/2} \frac{u_i - u_{i-1}}{\Delta x}
+$$
+Subsituted into (1), and rearranged, the discretized form of (1) becomes:
+$$
+- \nu_{i+1/2} (u_{i+1} - u_i) + \nu_{i-1/2} (u_i - u_{i-1}) = s_i (\Delta x)^2
+$$
+This scheme can be written as the following linear system:
+$$
+\mathbf{A} \vec{u} = \vec{s}
+$$
+
+$$
+\begin{bNiceMatrix}
+  [\nu_{i-1/2} + \nu_{i+1/2}] & [-\nu_{i+1/2}] & \cdots \\
+  [-\nu_{i-1/2}] & \ddots & \ddots \\
+  \vdots & \ddots & \ddots
+\end{bNiceMatrix}
+\quad
+\begin{bNiceMatrix}
+  u_0 \\
+  \vdots \\
+  u_{N-1}
+\end{bNiceMatrix}
+=
+\begin{bNiceMatrix}
+  s_0 (\Delta x)^2 \\
+  \vdots \\
+  s_{N-1} (\Delta x)^2
+\end{bNiceMatrix} \\
+$$
+
+\noindent Where $\mathbf{A}$ is an $N \times N$ tridiagonal matrix, and boundary conditions are imposed at $u_0$ and $u_{N-1}$. This system can be solved via LU Factorization.
+
+\noindent The following figure shows $u$ with 100 realizations of $\vec{\xi}$.
+Qualitatively, it looks like it is in agreement with the posted solution.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1.0\textwidth]{forward_model.png}
+    \label{fig:my_image}
+\end{figure}
+
+\section{Polynomial Chaos Expansion Surrogate}
+
+%\input{sections/pce-general-knowlege.tex}
+
+\end{document}
