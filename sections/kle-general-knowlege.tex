@@ -1,0 +1,90 @@
+\section{Appendix 2: Karhunen-Loève Expansions}
+The one (long) sentence description of a Karhunen-Loève Expansion (KLE) is: 
+
+\noindent \textit{KLE surrogates work by: 1. Transforming the uncertain parameters of the function in question into spectral space via those parameter's covariance matrix. 2. Truncating away the least important eigen modes. 3. Fitting a surrogate model in that reduced order spectral space}
+
+\subsection{Singular Value Decomposition (SVD)}
+(\href{https://pages.hmc.edu/ruye/MachineLearning/lectures/ch8/node4.html}{This} set of lecture notes helped me develop an understanding how we apply SVD to this context.)
+
+\noindent Given a random vector $\vec{x} \in \mathbb{R}^n$:
+\begin{itemize}
+    \item $\mu_{\vec{x}} = E(\vec{x}) \in \mathbb{R} \leftarrow$ is the mean.
+    \item $\Sigma_{\vec{x}} = E \left[ (\vec{x} - \mu_{\vec{x}}) {(\vec{x} - \mu_{\vec{x}})}^T \right] \leftarrow$ is the $n \times n$ covariance matrix. Each index of the covariance matrix $(\Sigma_{\vec{x}})_{i,j}$ is more often notated as $\text{Cov}(x_i, x_j) = E(x_i x_j) - E(x_i) E(x_j)$.
+\end{itemize}
+
+\noindent $\Sigma_{\vec{x}}$ has the follwing properties: 1. \textbf{Symmetric}, 2. \textbf{Positive}, 3. \textbf{Semi-Definite}. This means that we can take an egienvalue decomposition, and get positive, unique, eigenvalues:
+$$
+\Sigma_{\vec{x}} \mathbf{V} = \vec{\lambda} \mathbf{V}
+$$
+Where:
+$$
+\mathbf{V} = \left[ \vec{V_1} \cdots \vec{V_n} \right] \quad
+\vec{\lambda} = 
+\begin{bmatrix}
+    \lambda_1 \\
+    \vdots \\
+    \lambda_n
+\end{bmatrix}
+$$
+
+\noindent We can then map between $\vec{x}$, and $\vec{\lambda}$ using $\mathbf{V}$:
+\begin{itemize}
+    \item Forward transform: $\vec{\lambda} = \mathbf{V}^T \vec{x}$.
+    \item Inverse transform: $\vec{x} = \mathbf{V} \vec{\lambda}$.
+\end{itemize}
+
+\subsection{Idea of a KLE}
+If we group eigenvalues with their associated eigenvectors into eigenmodes, and sort them into descending order by egienvalue, we will notice that many of the lower eigenmodes do not contribute much to the solution.
+We can quantify this idea with the \textit{Total Variability Function}:
+$$
+\text{Total Variability}(\lambda_i) = \frac
+{\sum_{k=1}^{i} \lambda_k}
+{\sum_{k=1}^{n} \lambda_k}
+$$
+(Where it is assumed that eigenmodes are indexed in descending order by eigenvalue) If we compute Total Variability over the entire set of eigenmodes, we will find that Total Variability equals 1.
+However, with a smaller set of eigenmodes, we can recover 99\% of the Total Variability.
+\textit{This is the idea of KLE.}
+
+\subsection{KLE Formulation}
+We model a function $f$ with output dimension $\mathbb{R}^{\text{out}}$, and uncertain parameters $\vec{q} \in \mathbb{R}^{sd}$, where $sd$ is the \textit{stochastic dimension}. 
+We do this by decomposing $f$ into a \textit{mean field} $\bar{f}$, and a \textit{fluctuating field} $f'$:
+$$
+f = \bar{f} + f'
+$$
+The mean field can be deterministically calculated easily, although we will discuss computing it later.
+In the mean time, the fluctuating field can be represented by:
+$$
+f' = f - \bar{f}
+$$
+We can then take the covariance of $f'$: $\Sigma_{f'}$ (a matrix), and perform an SVD:
+$$
+\vec{\lambda} = \mathbf{V}^T \Sigma_{f'}
+$$
+As discussed earlier, we can find a reduced set of the most influential eigenmodes via Total Variability.
+This set will have $\text{N\_trunc} \le \mathbb{R}^{\text{out}}$ members.
+This leads to the Karhunen-Loève Expansion:
+$$
+f(\vec{q}) \simeq \tilde{f}(\vec{q}) = \bar{f}(\vec{q}) = \sum_{k=1}^{\text{N\_trunc}} c_k \sqrt{\lambda_k} \vec{V_k}
+$$
+\subsection{Training a KLE}
+Given training data, we can solve for coefficients $c_k$ exactly:
+$$
+c_k(\vec{q}_{\text{known}}) = \frac
+{f'(\vec{q}_{\text{known}})}
+{\sqrt{\lambda_k}} \vec{V}_k
+$$
+However, given a novel parameter $\vec{q}_{\text{novel}}$ without knowing the true model output $f(\vec{q}_{\text{novel}})$, we can not calculate $c_k$ exactly.
+For this reason, we employ a surrogate model to map from $\vec{q}_{\text{novel}}$ to $c_k(\vec{q}_{\text{novel}})$:
+$$
+\text{Surrogate Model}: \vec{q}_{\text{novel}} \rightarrow c_{k\,\text{novel}}
+$$
+The advantage of this approach (as opposed to directly building a surrogate to map from $\vec{q}_{\text{novel}}$ to $f_{\text{novel}}$), is that this is a lower dimensional approximation and therefore cheaper to form a surrogate. This makes KLE's especially attractive for modelling functions with high dimensional output spaces.
+
+
+\noindent KLE's are often trained with Gaussian Processes as we do here.
+
+\subsection{Predicting with a KLE}
+Given a novel unertain parameter $\vec{q}_{\text{novel}}$, $f(\vec{q}_{\text{novel}})$ can be predicted as:
+$$
+\tilde{f}(\vec{q}_{\text{novel}}) = \bar{f} + \sum_{k=1}^{\text{N\_trunc}} c_{k\,\text{surrogate}} \sqrt{\lambda_k} \vec{V_k}
+$$
