@@ -1,11 +1,11 @@
 \section{Appendix 1: Polynomial Chaos Expansion}
-A Polynomial Chaos Expansion (PCE) can model a function $f(\vec{x},t;\vec{\xi})$, with independent variables $\vec{x}$, and $t$, and uncertain inputs $\vec{\xi}$. If $\vec{\xi} \in \mathbb{R}^n$, then $n$ can be defined as the \textit{stochastic dimension}, and $f(\vec{x},t;\vec{\xi})$ can be modelled as:
+A Polynomial Chaos Expansion (PCE) can model a function $f(\vec{x},t;\vec{\xi})$, with independent variables $\vec{x}$, and $t$, and uncertain inputs $\vec{\xi}$. If $\vec{\xi} \in \mathbb{R}^n$, then $n$ can be defined as the \textit{stochastic dimension}, and $f(\vec{x},t;\vec{\xi})$ can be modeled as:
 $$
 f(\vec{x}, t; \vec{\xi}) \approx \sum_{k=0}^{\text{N\_basis}} c_k(\vec{x},t) \Psi_k(\vec{\xi})
 $$
 Where:
 $$
-\text{N\_basis} = \frac{(n + p)!}{n! + p!}
+\text{N\_basis} = \frac{(n + p)!}{n! \, p!}
 $$
 And $p$ is the \textit{Polynomial Order} hyperparameter.
 
@@ -16,24 +16,24 @@ $$
 $$
 Recall that $n$ is the stochastic dimension. $\Psi_{\alpha_j^{(k)}} (\xi_j)$ is a member of a specific \textit{family} of polynomials depending on the distribution of $\vec{\xi}$:
 \begin{itemize}
-  \item If $\vec{\xi}$ is \textit{uniformly} distributed, we draw from the \href{https://en.wikipedia.org/wiki/Legendre_polynomials}{Legendre Polynomal Family}.
-  \item If $\vec{\xi}$ is distributed according to a \textit{gaussian} distribution, we use the \href{https://en.wikipedia.org/wiki/Hermite_polynomials}{Hermite Polynomal Family}. 
+  \item If $\vec{\xi}$ is \textit{uniformly} distributed, we draw from the \href{https://en.wikipedia.org/wiki/Legendre_polynomials}{Legendre Polynomial Family}.
+  \item If $\vec{\xi}$ is distributed according to a \textit{Gaussian} Distribution, we use the \href{https://en.wikipedia.org/wiki/Hermite_polynomials}{Hermite Polynomial Family}. 
 \end{itemize}
 
-\noindent A polynomial of order $k$ in either of these families can be described by a vector of coefficients ranging from the 0th order coefficients up to the $k$th coefficients. However, when we say a polynomial is of order $k$, we mean that the $k^{\text{th}}$ coefficient is 1, and all others are zero.
+\noindent Each of these families are a series of polynomials, therefore we can specify the $k^{\text{th}}$ order polynomial from this family. $k$ also corresponds to the highest order term in that polynomial.
 
 \noindent Moreover, $\Psi_{\alpha_j^{(k)}}$ is a member of a particular set of a \textit{multi-index} of polynomials.
 A multi-index is a set of sets of polynomials.
 In particular, it is the set of all sets, each made up of $j$ polynomials, whose total polynomial order equals $k$.
 For example:
 $$
-\Psi_{\alpha_2^{(k)}} = \left\{ (\Psi^0, \Psi^3), (\Psi^3, \Psi^0), (\Psi^1, \Psi^2), (\Psi^2, \Psi^1), (\Psi^2, \Psi^2) \right\}
+\Psi_{\alpha_2^{(k)}} = \left\{ (\Psi^0, \Psi^3), (\Psi^3, \Psi^0), (\Psi^1, \Psi^2), (\Psi^2, \Psi^1) \right\}
 $$
 
 \noindent $\mathbf{c_k}$ - \textbf{Deterministic Coefficients}: The goal of training a PCE is to find these coefficients. During training, we know $f$ for a range of inputs. Moreover, from the stochastic dimension (enforced by the dimension of $\vec{\xi}$), and user-specified polynomial order, we can calculate $\Psi_k$. All that is left to do is calculate $c_k$.
 
 \noindent We can solve for $c_k$ using either spectral projection or least squares.
-While spectral projection takes advantage of the orthogonal nature of our polynomial basis, it's implentation is out of scope here. We instead use a least squares solve to find coefficients.
+While spectral projection takes advantage of the orthogonal nature of our polynomial basis, it's implementation is out of scope here. We instead use a least squares solve to find coefficients.
 
 \subsection{Vector Form of the PCE}
 In vector form, a PCE looks like:

@@ -84,6 +84,7 @@ def rmse_plots(x_vals, rmses, nrmses):
     plt.plot(x_vals, rmses, label='RMSE')
     plt.plot(x_vals, nrmses, label='NRMSE')
     plt.xlabel("x")
+    plt.title("Errors v x")
     plt.legend()
 
 def show_f(x_vals, F):
@@ -111,9 +112,42 @@ def show_f(x_vals, F):
     plt.title(f"{N} Realizations (Stable Stochastic Diffusion)")
     plt.legend()
 
+def compare_val_true(x_vals, F_tild, F_val):
+    N = F_tild.shape[0]
+    mean_tild = np.mean(F_tild, axis=0)
+    std_tild = np.std(F_tild, axis=0)
+    ci_low_tild = mean_tild-(2*std_tild)
+    ci_high_tild= mean_tild+(2*std_tild)
+
+    mean_val = np.mean(F_val, axis=0)
+    std_val = np.std(F_val, axis=0)
+    ci_low_val = mean_val-(2*std_val)
+    ci_high_val = mean_val +(2*std_val)
+
+    plt.figure(figsize=(8,5))
+    ## mean
+    plt.plot(x_vals, mean_tild, color="black", linewidth=2, label="Mean_prediction")
+    plt.plot(x_vals, mean_val, color="green", linewidth=2, label="Mean_true")
+    ## 95% CI
+    plt.fill_between(x_vals, ci_low_tild, ci_high_tild, color="gray", alpha=0.3, label="95% CI prediction")
+    plt.fill_between(x_vals, ci_low_val, ci_high_val, color="lightgreen", alpha=0.3, label="95% CI prediction")
+
+    ## Meta data
+    plt.xlabel("x")
+    plt.ylabel("u(x)")
+    plt.xlim(0, 1)
+    plt.ylim(0, 1.8)
+    plt.xticks(np.linspace(0, 1, 6))        # 0, 0.2, ..., 1
+    plt.yticks(np.linspace(0, 1.8, 7))      # nice spacing
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.6)
+    plt.ylim(0,2.0)
+    plt.title(f"{N} Realizations (Stable Stochastic Diffusion)")
+    plt.legend()
+
 if __name__ == "__main__":
+    forward_model.generate_training_samples(2000)
     x_vals, F_val, F_tild = perform_kle(1000)
     calc_errors(x_vals, F_val, F_tild)
-    show_f(x_vals, F_tild)
+    compare_val_true(x_vals, F_tild, F_val)
     plt.show()
 

@@ -77,8 +77,19 @@
 \newcommand{\divg}{\nabla\cdot}
 \newcommand{\curl}{\nabla\times}
 
+\makeatletter
+\renewcommand{\maketitle}{
+  \begin{flushleft}
+    {\LARGE \@title \par}
+    \vskip 1em
+    {\large \@author \par}
+    \rule{\textwidth}{0.5pt}
+  \end{flushleft}
+}
+\makeatother
+
 % ----- Title info -----
-\title{\textbf{Uncertainty Quantification - Homework 2}}
+\title{\textbf{Uncertainty Quantification - Surrogate Models}}
 \author{Leonid Scott}
 
 \begin{document}
@@ -96,11 +107,11 @@ This submission models the following 1D diffusion equation with both Polynomial 
 
 \noindent Where $s(x) = \sin(\pi x)$, and $v(x,xi) = v_0 (1 + \alpha \tanh(\sum_{i=1}^5 \xi_i \sin(i \pi x)))$.
 
-\noindent $v_0 = 0.1$, and $\alpha = 0.5$. $\vec{\xi} \in \mathbb{R}^5$, $\xi_i \text{ are } i.i.d$, and$\xi_i \sim N(0,1)$.
+\noindent $v_0 = 0.1$, and $\alpha = 0.5$. $\vec{\xi} \in \mathbb{R}^5$, $\xi_i \text{ are } i.i.d$, and $\xi_i \sim N(0,1)$.
 
 
 \section{Numerical Scheme of Model}
-Equation (1) is modelled using a 2nd order finite difference scheme across a uniformly spaced mesh from $x=0$, and $x=1$. The mesh is discrtized into $N$ points, each spaced $\Delta x$ apart. Therefore, the discrtized equation for the left hand side of (1) at mesh point $i$ is:
+Equation (1) is modeled using a 2nd order finite difference scheme across a uniformly spaced mesh from $x=0$, and $x=1$. The mesh is discretized into $N$ points, each spaced $\Delta x$ apart. Therefore, the discretized equation for the left hand side of (1) at mesh point $i$ is:
 $$
 \left. \frac{du}{dx} \right|_i \simeq \frac{u_{i+1/2} - u_{i-1/2}}{\Delta x}
 $$
@@ -108,7 +119,7 @@ $$
 u_{i+1/2} \simeq \nu_{i+1/2} \frac{u_{i+1} - u_i}{\Delta x}, \quad
 u_{i-1/2} \simeq \nu_{i-1/2} \frac{u_i - u_{i-1}}{\Delta x}
 $$
-Subsituted into (1), and rearranged, the discretized form of (1) becomes:
+Substituted into (1), and rearranged, the discretized form of (1) becomes:
 $$
 - \nu_{i+1/2} (u_{i+1} - u_i) + \nu_{i-1/2} (u_i - u_{i-1}) = s_i (\Delta x)^2
 $$
@@ -140,7 +151,7 @@ $$
 \noindent Where $\mathbf{A}$ is an $N \times N$ tridiagonal matrix, and boundary conditions are imposed at $u_0$ and $u_{N-1}$. This system can be solved via LU Factorization.
 
 \noindent The following figure shows $u$ with 100 realizations of $\vec{\xi}$.
-Qualitatively, it looks like it is in agreement with the posted solution.
+Qualitatively, it is in agreement with the posted solution.
 
 \begin{figure}
     \centering
@@ -149,7 +160,153 @@ Qualitatively, it looks like it is in agreement with the posted solution.
 \end{figure}
 
 \section{Polynomial Chaos Expansion Surrogate}
+The PCE to model the 1D Stochastic Diffusion Equation has the following design choices. 
+Appendix 1: \textit{Polynomial Chaos Expansions} details my best understanding of PCE's.
+My implementation can be found in \verb|pce.py|.
+\begin{enumerate}
+  \item \textbf{Polynomial Family:} Because $\vec{\xi}$ is normally distributed, \textit{Hermite polynomials} are used.
+  \item \textbf{Truncation Scheme:} The standard truncation scheme detailed in class (Eq2) is used to determine how many terms from the PCE expansion are retained. $n$ is dictated by the stochastic dimension of $\vec{\xi}$: $\vec{\xi} \in \mathbb{R}^5 \implies n = 5$. As shown below, a variety of polynomial orders $p$ are selected, and RMSE is calculated at each value of $p$.
+\end{enumerate}
 
-%\input{sections/pce-general-knowlege.tex}
+\begin{equation}
+  N_{\text{basis}} = \frac{(n + p)!}{n! \,  p!}
+\end{equation}
+
+\begin{enumerate}
+  \item \textbf{Solving for Deterministic Coefficients:} Least-squares fits were chosen over Spectral Projection to solve for Deterministic Coefficients $c_k$. This is due to complexity of implementation, and reduced computational cost. Spectral Projection either requires either Monte Carlo Sampling to compute integrals (expensive), or quadrature selection (complex).
+\end{enumerate}
+
+\subsection{Error Metrics}
+To evaluate the performance of the PCE for the 1D Stochastic Diffusion Problem, Root Mean Square Error (Eq3) is compared between modeled and true results with a separate validation set from training.
+\begin{equation}
+  NRMSE = \frac
+  {\sqrt{\frac{1}{N} \sum_{i=1}^{N} \left( f_i^{\text{true}}  - f_i^{\text{predicted}} \right)^2}}
+  {\frac{1}{N} \sum_{i=1}^{N} f_i^{\text{true}}} \\
+\end{equation}
+
+
+\noindent In both figures \ref{fig:PCE1}, and \ref{fig:PCE2}, RMSE is calculated at $u(0.25)$, and $u(0.5)$.
+
+\subsection{Results}
+\textbf{RMSE vs Polynomial Order (Left):} Here, independent training and validation sets are made up of 1000 samples each. The 1D Stochastic Diffusion model is run with 1501 points. PCE's of increasing polynomial order.
+
+\noindent \textbf{RMSE vs Number of Samples (Right):} Here, we see how RMSE drops with number of samples. Based on lessons learned in the left image, $p=3$ is chosen. The 1D Stochastic Diffusion Model is run with 1501 points. Independent, and equally sized training and validation sets are created training sets sized: 100, 1000, 10000, 100000 samples each.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{PCE-RMSE-p.png}
+        \caption{}
+        \label{fig:PCE1}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{PCE-RMSE-Nsamples.png}
+        \caption{}
+        \label{fig:PCE2}
+    \end{minipage}
+\end{figure}
+
+\subsection{Findings}
+\textbf{RMSE v Polynomial Order:} For 1000 samples, RMSE only drops with Polynomial order until about $P=3$, then begins to rise after that. 
+This could be because the $N_{\text{basis}}$ term of Eq2 grows factorially, while the number of samples remains the same.
+With too low a polynomial order, the PCE might not be able to capture the dynamics of the model. However, with too high a polynomial order, the PCE might 'overfit' the training data, and perform poorly when exposed to novel data.
+
+\noindent\textbf{RMSE v Number of Samples:} Evidence that performance of a particular polynomial order is dependent on the number of samples is corroborated by figure \ref{fig:PCE2}. It appears that for $u(0.25)$, RMSE for $P=3$ is minimized for 1000 samples, but then rises slightly and plateau as the PCE's prediction becomes limited by the number of terms $P=3$ allows for.
+
+\section{Karhunen Loève Expansion Surrogate}
+Appendix 2: \textit{Karhunen Loève Expansions} details general information about KLE's.
+My implementation can be found in \verb|kle.py| with application to the 1D Stochastic Diffusion model in \verb|validate_kle.py|.
+
+\subsubsection{Retained Eigenmodes}
+As detailed in Appendix 2, in KLE's, we project our output space to spectral space.
+By doing so, we can find eigenmodes from the covariance matrix of the fluctuating component.
+If we rank each eigenmode in descending order by the eigenvalue, we can apply the following \textit{Total Variability Function}(Eq \ref{TVF}) to rank eigenmodes based on how much they contribute to the solution.
+
+\begin{equation}
+\text{Total Variability}(\lambda_i) = \frac
+  {\sum_{k=1}^{i} \lambda_k}
+  {\sum_{k=1}^{n} \lambda_k}
+\label{TVF}
+\end{equation}
+
+\noindent Applying the total variability function to the entire set of eigenmodes will give us exactly 1.
+However, very few modes contribute most of the variability in the solution.
+By applying the total variability to progressively larger subsets of the eigenmodes (who are ordered in descending order by eigenvalue), we can find small subsets of eigenmodes that explain the vast majority of the behavior.
+\newline
+
+\noindent For this problem, we have only retained the subset of eigen modes that account for 99\% of the total variability.
+When we train the KLE on 1000 samples, each evaluated at 1000 $x$ locations between 0, and 1, we find that of the 1000 total eigenmodes, just 4 contain 99\% of the total variance ($99.5407\%$ to be exact).
+This is illustrated in the figure \ref{fig:KLE-TV}:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{KLE-TV-EigenModes.png}
+    \caption{}
+    \label{fig:KLE-TV}
+\end{figure}
+
+\subsubsection{Gaussian Processe Surrogate Model}
+With the reduced set of eigenmodes, and training data, we exactly compute the deterministic coefficients of the KLE as:
+$$
+c_k(\vec{\xi}_{\text{known}}) = \frac
+{f'(\vec{\xi}_{\text{known}})^T}
+{\sqrt{\lambda_k}} \vec{V}_k
+$$
+But now, to approximate $f$ for novel values of $\vec{\xi}$, we must train a set of surrogate models that maps from $\vec{\xi}_\text{novel}$ to $c_k$.
+\newline
+
+\noindent In this problem, we choose Gaussian Processes with the Squared Exponential Kernal to perform this task.
+In order to make hyperparameter optimization easier, python's \verb|scikit| library was used to implement the GP.
+The optimizer needs to tune two hyperparameters: The length scale $l$, and the variance $\sigma^2$.
+We assume values of $f$ at training locations are noise free, and consequently set $\alpha = 0$.
+Because $\vec{\xi} \sim N(0,1)$, no normalization was performed.
+
+\subsubsection{Errors}
+Root Mean Square Error (RMSE), and Normalized Root Mean Square (NRMSE) are calculated to show validation errors of the KLE surrogate across the domain for which the 1D Stochastic Diffusion model is valid.
+
+\begin{equation}
+  RMSE = 
+  \sqrt{\frac{1}{N} \sum_{i=1}^{N} \left( f_i^{\text{true}}  - f_i^{\text{predicted}} \right)^2}
+\end{equation}
+
+\begin{equation}
+  NRMSE = \frac
+  {\sqrt{\frac{1}{N} \sum_{i=1}^{N} \left( f_i^{\text{true}}  - f_i^{\text{predicted}} \right)^2}}
+  {\frac{1}{N} \sum_{i=1}^{N} f_i^{\text{true}}} \\
+\end{equation}
+
+Where $f$ is a model evaluation @ $x=i$, and $N$ is the number of samples in the validation set.
+For this case, independent training and validation sets of 1000 samples each were taken.
+Figure \ref{fig:KLE-Error} shows both RMSE and NRMSE across the domain:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{KLE-RMSE-NRMSE-Errors.png}
+    \caption{}
+    \label{fig:KLE-Error}
+\end{figure}
+
+\noindent Qualitatively, there is similar NRMSE between the KLE and PCE at points for which the PCE was evaluated $(x=0.25)$, and $(x=0.5)$.
+NRMSE spikes towards the edge of the domain as the mean near those locations goes to zero (See figure \ref{fig:KLE-u-comp}).
+
+\subsubsection{KLE Generated Profile of $u(x)$}
+With the same training and validation set as before, we can generate mean and 95\% CI bounds for both the validation set, and the KLE surrogate.
+As you can see, the two curves are visually indistinguishable.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{KLE-F-comp.png}
+    \caption{}
+    \label{fig:KLE-u-comp}
+\end{figure}
+
+\newpage
+\section{Appendix}
+\input{sections/pce-general-knowlege.tex}
+\newpage
+\input{sections/kle-general-knowlege.tex}
 
 \end{document}
