@@ -68,7 +68,7 @@ def train_pce(xis: Sequence[Sequence[float]], ys: Sequence[float], dist: str, p:
         len(xis) = {len(xis)}, len(ys) = {len(ys)}""")
     if dist not in {"uniform", "normal"}:
         raise Exception(f"Distribution must be 'normal' or 'uniform'. Recieved '{dist}'")
-    if p < 1: raise Exception("p must be greater than one")
+    if p < 0: raise Exception("p must be greater than zero")
 
     n = len(xis[0]) # Stochastic Dimension
     poly_fam = Legendre if dist=="uniform" else HermiteE
