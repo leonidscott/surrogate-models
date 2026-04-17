@@ -6,6 +6,7 @@ from sklearn.gaussian_process.kernels import RBF
 import numpy as np
 
 from pprint import pprint
+import matplotlib.pyplot as plt
 
 class KLE(TypedDict):
     Fbar: np.ndarray      # Vector: Rout tall
@@ -16,6 +17,22 @@ def Rout(kle: KLE) -> int:
     return kle['Fbar'].shape
 def Ntrunc(kle: KLE) -> int:
     return kle['lam_trunc'].shape
+
+def plot_variability(total_variabilities: Sequence[float], trc_idx: int):
+    print(f"len(total_variabilities): {len(total_variabilities)}")
+    print(total_variabilities[0])
+    idxs = range(len(total_variabilities))
+    plt.figure(figsize=(8,5))
+    plt.plot(idxs, total_variabilities, marker='o', linestyle='-', color='red')
+    plt.axvline(x=trc_idx, color='black', linestyle='--')
+    plt.axhline(y=0.99, color='black', linestyle='--')
+    plt.xscale('log')
+    plt.xlim(-10,1000)
+    plt.xlabel("Eigenmodes index")
+    plt.ylabel("Total Variability")
+    plt.title("Total Variability of eigenvalues")
+    plt.show()
+
 
 class EigenDict(TypedDict):
     λ_i: Sequence[float]
@@ -44,7 +61,8 @@ def truncate_eigenmodes(eigenvalues: Sequence[float],
 
     k_variability = np.array(list(map(k_var, range(len(val_dom)))))
     trunc_at = np.argmax(k_variability > 0.99) # We know that the idx[last] == 1
-    print(f"Truncating at {trunc_at+1}th index out of {Rout} indexes. k_variability at idx {trunc_at+1}: {k_var(trunc_at)}")
+    print(f"Truncating at {trunc_at}th index out of {Rout} indexes. k_variability at idx {trunc_at}: {k_var(trunc_at)}")
+    #plot_variability(k_variability, trunc_at)
 
     return eig_dom[:trunc_at+1]
 
@@ -70,6 +88,7 @@ def fit_C(Q_train: np.ndarray, C_train: np.ndarray) -> Sequence[GaussianProcessR
     return pseq(modes).map(lambda ck: gp_regression(Q_train, ck)).to_list()
     #return list(map((lambda ck: gp_regression(Q_train, ck)), modes))
 
+
 def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
     # Q_train: Uncertain Parameters of Training Set (Independent Var)- Nsamples x Rsd
     # F_train: Traingin Set output (Dependent Var) - Nsamples x Rout
@@ -92,7 +111,7 @@ def train_kle(Q_train: np.ndarray, F_train: np.ndarray) -> KLE:
     f_fluct = F_train- mean_field                        # Matrix: Nsamples x Rout
     cov_fluct = (1.0/(float(Nsamples) - 1.0)) * (f_fluct.T @ f_fluct)     # Matrix: Rout x Rout
     eigenvalues, eigenvectors = np.linalg.eigh(cov_fluct) # λ_full <- Vector: Rout tall
-                                                         # V_full <- Matrix: Rout x Rout
+                                                          # V_full <- Matrix: Rout x Rout
     # Ntrunc: Number of Egienmoodes after truncation <= Rout
     # ↓ {lam: <- Vector: Ntrunc tall,   V: <- Matrix: Ntrunc x Ntrunc}
     eigen_pairs = truncate_eigenmodes(eigenvalues, eigenvectors)
